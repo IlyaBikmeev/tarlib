@@ -22,32 +22,40 @@ class File;
 //Класс архив
 class Archive {
    mtar_t tar;
-   Directory *root;                                        
+   Directory *root;
+   std::string mode;                                       
 
-   void removeFirstDirInPath(std::string& name);         //Удалить первое имя из пути
-   std::string getCurNameInPath(std::string name)const;  //Получить первое имя в пути
-   void add(std::string name);                           //Добавление элемента в архив
-   void dfs(std::string curName,Directory* curRoot);     //Обход в глубину
+   void removeFirstDirInPath(std::string& name);               //Удалить первое имя из пути
+   std::string getCurNameInPath(std::string name)const;        //Получить первое имя в пути
+   void dfsAdd(std::string curName,Directory* curRoot);        //Обход в глубину
+   void dfsFind(std::string name,Element* curElement,Element*&); //Поиск в глубину 
 
 public:
-   Archive(std::string fileName = "",const char* mode ="");
+   Archive(std::string fileName,std::string _mode);
    ~Archive(); 
-   Directory *getRoot() const {return root;}                
-   void remove(std::string name);
-   bool isEmpty();
+   Directory *getRoot() const {return root;}
+   void addElement(std::string fullName);                //Добавить элемент в архив              
+   void removeElement(std::string name);                 //Удалить элемент из архива
+   Element* findElement(std::string fullPath);           //Поиск элемента в архиве
+   mtar_t getTar()const{return tar;}
+   //bool isEmpty(){return root->isEmpty();}
 };
 
 //Базовый класс для папки и файла
 class Element{
 protected:
    std::string name;
+   Archive* archive;    //Архив, в котором лежит элемент
    Directory *parent;   //Родительская папка
 
 public:
-   Element(std::string name="",Directory*parent=nullptr):name(name),parent(parent){}   
+   Element(Archive* _archive,
+           std::string name="",Directory*parent=nullptr):
+           archive(_archive),name(name),parent(parent){}   
    Directory* getParent()const{return parent;} 
    std::string getName() const {return name;}         
    std::string getFullName()const;
+   Archive* getArchive()const{return archive;}
    virtual void remove(Element*){}                 
 };
 
@@ -56,11 +64,14 @@ class Directory : public Element {
    std::vector<Element*> children;   
 
 public:
-   Directory(std::string name="",Directory*parent = nullptr):Element(name,parent){}
+   Directory(Archive* _archive,
+             std::string name="",Directory*parent = nullptr):
+             Element(_archive,name,parent),children(0){}
    Element* getChild(int i)const{return children[i];}
    void addElement(Element* cur){children.push_back(cur);}
    void remove(Element* c){children.erase(find(children.begin(),children.end(),c));}
    Element* findElement(std::string name);
+   size_t getSize()const{return children.size();}
    bool isEmpty(){return children.size() == 0;}
 };
 
@@ -68,7 +79,8 @@ public:
 class File : public Element {
 
 public:
-   File(std::string name,Directory* parent):Element(name,parent){}
+   File(Archive* _archive,std::string name,Directory* parent):
+        Element(_archive,name,parent){}
    ~File();  
 };
 
@@ -77,16 +89,15 @@ public:
 class FIStream : public std::istringstream {
    File *file;
 public:
-   FIStream(File *file = nullptr);
-   ~FIStream();
+   FIStream(File *file);
+   ~FIStream(){}
 };
 
 class FOStream : public std::ostringstream {
    File *file;
 public:
-   FOStream(File *file);
+   FOStream(File *file):file(file){}
    ~FOStream();
 };
-
 
 #endif

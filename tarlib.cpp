@@ -1,60 +1,92 @@
 #include "tarlib.h"
 
-Archive::Archive(std::string fileName,const char *mode) {
-   mtar_open(&tar,fileName.c_str(),mode);
-   root = new Directory;
+Archive::Archive(std::string fileName,std::string _mode){
+   mode = _mode;
+   mtar_open(&tar,fileName.c_str(),mode.c_str());
+   root = new Directory(this);
    mtar_header_t h;
-   while ((mtar_read_header(&tar, &h)) != MTAR_ENULLRECORD) {
-      dfs(h.name,root);
-      mtar_next(&tar);
+   if(mode == "r"){
+      while ((mtar_read_header(&tar, &h)) != MTAR_ENULLRECORD) {
+         std::cout<<h.name<<"\n";
+         addElement(h.name);
+         mtar_next(&tar);
+      }
    }
 }
 
 Archive::~Archive() {
+   mtar_finalize(&tar);
    mtar_close(&tar);
    /*Нужно еще удалить все элементы из дерева */
 }
 
-void Archive::add(std::string name) {
-
+void Archive::addElement(std::string fullName) {
+   dfsAdd(fullName,root);
 }
 
-void Archive::dfs(std::string curPath,Directory *curDir) {
+Element* Archive::findElement(std::string fullPath){
+   Element* result;
+   for(int i = 0; i < root->getSize(); i++){
+      dfsFind(fullPath,root->getChild(i),result);
+   }
+   return result;
+}
+
+
+void Archive::dfsAdd(std::string curPath,Directory *curDir) {
    if (curPath == "")
       return;
-
    std::string curName = getCurNameInPath(curPath);
    Element *curElement = curDir->findElement(curName);
-
-   std::cout<<curDir->getName()<<" "<<curName<<"\n";
-
    //В текущей папке нет данного элемента
    if (!curElement) {
       //Текущий элемент является файлом
       if (curName.find('/') == std::string::npos) {
-         Element* file = new File(curName,curDir);
+         Element* file = new File(this,curName,curDir);
          curDir->addElement(file);
       }
       //Текущий элемент является папкой
       else {
-         Element * dir = new Directory(curName,curDir);
+         Element * dir = new Directory(this,curName,curDir);
          curDir->addElement(dir);
          removeFirstDirInPath(curPath);
-         dfs(curPath,dynamic_cast<Directory*>(dir));
+         dfsAdd(curPath,dynamic_cast<Directory*>(dir));
       }
    }
    //Если текущий элемент найден в текущей директории
    else {
       //Если данный элемент - файл, то добавляем его в текущую папку и выходим из рекурсии
       if (curName.find('/') == std::string::npos){
-         Element* file = new File(curName,curDir);
+         Element* file = new File(this,curName,curDir);
          curDir->addElement(file);
          return;
       }
       //Иначе просто идем дальше, делая текущей папкой найденный элемент
       else{
          removeFirstDirInPath(curPath);
-         dfs(curPath,dynamic_cast<Directory *>(curElement));
+         dfsAdd(curPath,dynamic_cast<Directory *>(curElement));
+      }
+   }
+}
+
+void Archive::dfsFind(std::string curPath,Element* curElement,Element*& result){
+   std::string curName = getCurNameInPath(curPath);
+   if(curName == "" || 
+      curName != curElement->getName()){
+      return;
+   }
+   
+   else{
+      removeFirstDirInPath(curPath);
+      Directory* dir = dynamic_cast<Directory*>(curElement);
+      if(dir){
+         for(int i = 0; i < dir->getSize(); i++){
+            dfsFind(curPath,dir->getChild(i),result);
+         }
+      }
+      else{
+         result = curElement;
+         return;
       }
    }
 }
@@ -85,10 +117,34 @@ Element *Directory:: findElement(std::string name) {
       if (children[i]->getName() == name)
          return children[i];
    }
+
    return nullptr;
 }
 
-bool Archive::isEmpty() {
-   return root->isEmpty();
+std::string Element:: getFullName()const{
+   Directory* ptr = parent;
+   std::string result = "";
+   while(ptr){
+      result.insert(0,ptr->getName());
+      ptr = ptr->getParent();
+   }
+   result += getName();
+   return result;
 }
 
+FIStream:: FIStream(File*file):file(file),std::istringstream(""){
+   mtar_t tar = file->getArchive()->getTar();
+   mtar_header_t h;
+   char* p;
+   mtar_find(&tar, file->getFullName().c_str(), &h);
+   p = (char*)calloc(1, h.size + 1);
+   mtar_read_data(&tar, p, h.size);
+   std::istringstream(std::string(p));
+   free(p);
+}
+
+FOStream:: ~FOStream(){
+   mtar_t tar = file->getArchive()->getTar();
+   mtar_write_file_header(&tar, file->getFullName().c_str(),this->str().size());
+   mtar_write_data(&tar, this->str().c_str(), this->str().size());
+}
