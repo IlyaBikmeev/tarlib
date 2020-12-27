@@ -8,19 +8,15 @@
 
 using namespace std;
 
-
 int main() {
-   Archive tar("example.tar","r");
-   //tar.addElement("dir/abc/file2.txt");
-   //tar.addElement("dir/abc/qwerty/file3.txt");
+   Archive tar("test.tar","w");
 
-   File* f1 = dynamic_cast<File*>(tar.findElement("dir/abc/file2.txt"));
-   File* f2 = dynamic_cast<File*>(tar.findElement("dir/abc/qwerty/file3.txt"));
-
-   FIStream in(f1);
-   string str;
-   in >> str;
-   cout<<str<<"\n";
-
+   tar.addElement("dir/abc/ewgwe/hewh/rej/file.txt");
+   tar.addElement("dir/abc/ewgwe/file.txt");
+   FOStream out1(dynamic_cast<File*>(tar.findElement("dir/abc/ewgwe/file.txt")));
+   FOStream out2(dynamic_cast<File*>(tar.findElement("dir/abc/ewgwe/hewh/rej/file.txt")));
+   out1 << "hello!";
+   out2 << "Good evening!";
+   
    return 0;
 }

@@ -7,7 +7,6 @@ Archive::Archive(std::string fileName,std::string _mode){
    mtar_header_t h;
    if(mode == "r"){
       while ((mtar_read_header(&tar, &h)) != MTAR_ENULLRECORD) {
-         std::cout<<h.name<<"\n";
          addElement(h.name);
          mtar_next(&tar);
       }
@@ -17,7 +16,26 @@ Archive::Archive(std::string fileName,std::string _mode){
 Archive::~Archive() {
    mtar_finalize(&tar);
    mtar_close(&tar);
-   /*Нужно еще удалить все элементы из дерева */
+   dfsDelete(root);
+}
+
+void Archive:: dfsDelete(Element* curElement){
+   if(dynamic_cast<File*>(curElement)){
+      delete curElement;
+      return;
+   }
+   else{
+      Directory* d = dynamic_cast<Directory*>(curElement);
+      for(int i = 0; i < d->getSize(); ++i){
+         dfsDelete(d->getChild(i));
+      }
+   }
+   delete curElement;
+}
+
+void Archive:: removeElement(std::string name){
+   Element* curElement = findElement(name);
+   dfsDelete(curElement);
 }
 
 void Archive::addElement(std::string fullName) {
@@ -31,7 +49,6 @@ Element* Archive::findElement(std::string fullPath){
    }
    return result;
 }
-
 
 void Archive::dfsAdd(std::string curPath,Directory *curDir) {
    if (curPath == "")
@@ -132,15 +149,22 @@ std::string Element:: getFullName()const{
    return result;
 }
 
-FIStream:: FIStream(File*file):file(file),std::istringstream(""){
+FIStream::FIStream(File* file):file(file){
+   if(file->getArchive()->getMode() != "r")
+      throw mtar_bad_mode();
    mtar_t tar = file->getArchive()->getTar();
    mtar_header_t h;
    char* p;
    mtar_find(&tar, file->getFullName().c_str(), &h);
    p = (char*)calloc(1, h.size + 1);
    mtar_read_data(&tar, p, h.size);
-   std::istringstream(std::string(p));
+   str(p);
    free(p);
+}
+
+FOStream::FOStream(File *file):file(file){
+   if(file->getArchive()->getMode() != "w")
+      throw mtar_bad_mode();
 }
 
 FOStream:: ~FOStream(){

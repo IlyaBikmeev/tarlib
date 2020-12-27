@@ -14,6 +14,19 @@
 для доступа к тому или иному элементу по имени.
 */
 
+class mtar_bad_mode : public std::exception{
+public:
+   ~mtar_bad_mode(){}
+   const char * what()const throw(){return "Wrong mode !";}
+};
+
+class mtar_not_found : public std::exception{
+
+public:
+   ~mtar_not_found(){}
+   const char* what()const throw(){return "Not found!";}
+};
+
 class Archive;
 class Element;
 class Directory;
@@ -29,6 +42,7 @@ class Archive {
    std::string getCurNameInPath(std::string name)const;        //Получить первое имя в пути
    void dfsAdd(std::string curName,Directory* curRoot);        //Обход в глубину
    void dfsFind(std::string name,Element* curElement,Element*&); //Поиск в глубину 
+   void dfsDelete(Element* curElement);
 
 public:
    Archive(std::string fileName,std::string _mode);
@@ -38,7 +52,7 @@ public:
    void removeElement(std::string name);                 //Удалить элемент из архива
    Element* findElement(std::string fullPath);           //Поиск элемента в архиве
    mtar_t getTar()const{return tar;}
-   //bool isEmpty(){return root->isEmpty();}
+   std::string getMode()const{return mode;}
 };
 
 //Базовый класс для папки и файла
@@ -96,7 +110,7 @@ public:
 class FOStream : public std::ostringstream {
    File *file;
 public:
-   FOStream(File *file):file(file){}
+   FOStream(File *file);
    ~FOStream();
 };
 
