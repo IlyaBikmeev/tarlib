@@ -16,14 +16,12 @@
 
 class mtar_bad_mode : public std::exception{
 public:
-   ~mtar_bad_mode(){}
    const char * what()const throw(){return "Wrong mode !";}
 };
 
 class mtar_not_found : public std::exception{
 
 public:
-   ~mtar_not_found(){}
    const char* what()const throw(){return "Not found!";}
 };
 
@@ -46,12 +44,12 @@ class Archive {
 
 public:
    Archive(std::string fileName,std::string _mode);
-   ~Archive(); 
+   virtual ~Archive(); 
    Directory *getRoot() const {return root;}
    void addElement(std::string fullName);                //Добавить элемент в архив              
    void removeElement(std::string name);                 //Удалить элемент из архива
    Element* findElement(std::string fullPath);           //Поиск элемента в архиве
-   mtar_t getTar()const{return tar;}
+   mtar_t* getTar(){return &tar;}
    std::string getMode()const{return mode;}
 };
 
@@ -65,7 +63,8 @@ protected:
 public:
    Element(Archive* _archive,
            std::string name="",Directory*parent=nullptr):
-           archive(_archive),name(name),parent(parent){}   
+           archive(_archive),name(name),parent(parent){}
+   virtual ~Element(){}
    Directory* getParent()const{return parent;} 
    std::string getName() const {return name;}         
    std::string getFullName()const;
@@ -82,6 +81,7 @@ public:
              std::string name="",Directory*parent = nullptr):
              Element(_archive,name,parent),children(0){}
    Element* getChild(int i)const{return children[i];}
+   ~Directory();
    void addElement(Element* cur){children.push_back(cur);}
    void remove(Element* c){children.erase(find(children.begin(),children.end(),c));}
    Element* findElement(std::string name);
@@ -95,7 +95,7 @@ class File : public Element {
 public:
    File(Archive* _archive,std::string name,Directory* parent):
         Element(_archive,name,parent){}
-   ~File();  
+   ~File(){}  
 };
 
 //Классы для потоков
@@ -104,7 +104,6 @@ class FIStream : public std::istringstream {
    File *file;
 public:
    FIStream(File *file);
-   ~FIStream(){}
 };
 
 class FOStream : public std::ostringstream {

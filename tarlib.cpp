@@ -16,7 +16,7 @@ Archive::Archive(std::string fileName,std::string _mode){
 Archive::~Archive() {
    mtar_finalize(&tar);
    mtar_close(&tar);
-   dfsDelete(root);
+   delete root;
 }
 
 void Archive:: dfsDelete(Element* curElement){
@@ -85,7 +85,7 @@ void Archive::dfsAdd(std::string curPath,Directory *curDir) {
       }
    }
 }
-
+                             
 void Archive::dfsFind(std::string curPath,Element* curElement,Element*& result){
    std::string curName = getCurNameInPath(curPath);
    if(curName == "" || 
@@ -134,7 +134,6 @@ Element *Directory:: findElement(std::string name) {
       if (children[i]->getName() == name)
          return children[i];
    }
-
    return nullptr;
 }
 
@@ -149,15 +148,20 @@ std::string Element:: getFullName()const{
    return result;
 }
 
+Directory::~Directory(){
+   for(int i = 0; i < children.size(); ++i)
+      delete children[i];
+}
+
 FIStream::FIStream(File* file):file(file){
    if(file->getArchive()->getMode() != "r")
       throw mtar_bad_mode();
-   mtar_t tar = file->getArchive()->getTar();
+   mtar_t* tar = file->getArchive()->getTar();
    mtar_header_t h;
    char* p;
-   mtar_find(&tar, file->getFullName().c_str(), &h);
+   mtar_find(tar, file->getFullName().c_str(), &h);
    p = (char*)calloc(1, h.size + 1);
-   mtar_read_data(&tar, p, h.size);
+   mtar_read_data(tar, p, h.size);
    str(p);
    free(p);
 }
@@ -168,7 +172,7 @@ FOStream::FOStream(File *file):file(file){
 }
 
 FOStream:: ~FOStream(){
-   mtar_t tar = file->getArchive()->getTar();
-   mtar_write_file_header(&tar, file->getFullName().c_str(),this->str().size());
-   mtar_write_data(&tar, this->str().c_str(), this->str().size());
+   mtar_t* tar = file->getArchive()->getTar();
+   mtar_write_file_header(tar, file->getFullName().c_str(),this->str().size());
+   mtar_write_data(tar, this->str().c_str(), this->str().size());
 }
