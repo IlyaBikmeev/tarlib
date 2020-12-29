@@ -97,9 +97,7 @@ public:
         Element(_archive,name,parent){}
    ~File(){}  
 };
-
 //Классы для потоков
-
 class FIStream : public std::istringstream {
    File *file;
 public:
